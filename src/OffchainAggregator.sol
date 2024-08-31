@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
-pragma abicoder v2;
+pragma solidity ^0.8.19;
 
 import "./AccessControllerInterface.sol";
 import "./AggregatorV2V3Interface.sol";
 import "./AggregatorValidatorInterface.sol";
 import "./LinkTokenInterface.sol";
 import "./Owned.sol";
-import "./OffchainAggregatorBilling.sol";
 import "./TypeAndVersionInterface.sol";
 
 /**
@@ -16,7 +14,7 @@ import "./TypeAndVersionInterface.sol";
   * @dev For details on its operation, see the offchain reporting protocol design
   * @dev doc, which refers to this contract as simply the "contract".
 */
-contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInterface, OffchainAggregatorBilling {
+contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInterface {
 
   uint256 constant private maxUint32 = (1 << 32) - 1;
 
@@ -59,6 +57,37 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
   // Highest answer the system is allowed to report in response to transmissions
   int192 immutable public maxAnswer;
 
+   // s_signers contains the signing address of each oracle
+  address[] internal s_signers;
+
+  // s_transmitters contains the transmission address of each oracle,
+  // i.e. the address the oracle actually sends transactions to the contract from
+  address[] internal s_transmitters;
+
+  // Maximum number of oracles the offchain reporting protocol is designed for
+  uint256 constant internal maxNumOracles = 31;
+
+  // Used for s_oracles[a].role, where a is an address, to track the purpose
+  // of the address, or to indicate that the address is unset.
+  enum Role {
+    // No oracle role has been set for address a
+    Unset,
+    // Signing address for the s_oracles[a].index'th oracle. I.e., report
+    // signatures from this oracle should ecrecover back to address a.
+    Signer,
+    // Transmission address for the s_oracles[a].index'th oracle. I.e., if a
+    // report is received by OffchainAggregator.transmit in which msg.sender is
+    // a, it is attributed to the s_oracles[a].index'th oracle.
+    Transmitter
+  }
+  struct Oracle {
+    uint8 index; // Index of oracle in s_signers/s_transmitters
+    Role role;   // Role of the address which mapped to this struct
+  }
+
+  mapping (address /* signer OR transmitter address */ => Oracle)
+    internal s_oracles;
+
   /*
    * @param _maximumGasPrice highest gas price for which transmitter will be compensated
    * @param _reasonableGasPrice transmitter will receive reward for gas prices under this value
@@ -74,28 +103,21 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
    * @param _description short human-readable description of observable this contract's answers pertain to
    */
   constructor(
-    uint32 _maximumGasPrice,
-    uint32 _reasonableGasPrice,
-    uint32 _microLinkPerEth,
-    uint32 _linkGweiPerObservation,
-    uint32 _linkGweiPerTransmission,
-    LinkTokenInterface _link,
     int192 _minAnswer,
     int192 _maxAnswer,
-    AccessControllerInterface _billingAccessController,
     AccessControllerInterface _requesterAccessController,
     uint8 _decimals,
     string memory _description
   )
-    OffchainAggregatorBilling(_maximumGasPrice, _reasonableGasPrice, _microLinkPerEth,
-      _linkGweiPerObservation, _linkGweiPerTransmission, _link,
-      _billingAccessController
-    )
+    // OffchainAggregatorBilling(_maximumGasPrice, _reasonableGasPrice, _microLinkPerEth,
+    //   _linkGweiPerObservation, _linkGweiPerTransmission, _link,
+    //   _billingAccessController
+    // )
   {
     decimals = _decimals;
     s_description = _description;
     setRequesterAccessController(_requesterAccessController);
-    setValidatorConfig(AggregatorValidatorInterface(0x0), 0);
+    setValidatorConfig(AggregatorValidatorInterface(address(0)), 0);
     minAnswer = _minAnswer;
     maxAnswer = _maxAnswer;
   }
@@ -174,7 +196,7 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
       uint lastIdx = s_signers.length - 1;
       address signer = s_signers[lastIdx];
       address transmitter = s_transmitters[lastIdx];
-      payOracle(transmitter);
+      // payOracle(transmitter);
       delete s_oracles[signer];
       delete s_oracles[transmitter];
       s_signers.pop();
@@ -187,7 +209,7 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
         "repeated signer address"
       );
       s_oracles[_signers[i]] = Oracle(uint8(i), Role.Signer);
-      require(s_payees[_transmitters[i]] != address(0), "payee must be set");
+      // require(s_payees[_transmitters[i]] != address(0), "payee must be set");
       require(
         s_oracles[_transmitters[i]].role == Role.Unset,
         "repeated transmitter address"
@@ -503,13 +525,13 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
   }
 
   // Used to relieve stack pressure in transmit
-  struct ReportData {
-    HotVars hotVars; // Only read from storage once
-    bytes observers; // ith element is the index of the ith observer
-    int192[] observations; // ith element is the ith observation
-    bytes vs; // jth element is the v component of the jth signature
-    bytes32 rawReportContext;
-  }
+  // struct ReportData {
+  //   HotVars hotVars; // Only read from storage once
+  //   bytes observers; // ith element is the index of the ith observer
+  //   int192[] observations; // ith element is the ith observation
+  //   bytes vs; // jth element is the v component of the jth signature
+  //   bytes32 rawReportContext;
+  // }
 
   struct NewReportData {
     int192[] observations; // ith element is the ith observation
@@ -579,12 +601,12 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
   function transmit(
     // NOTE: If these parameters are changed, expectedMsgDataLength and/or
     // TRANSMIT_MSGDATA_CONSTANT_LENGTH_COMPONENT need to be changed accordingly
-    NewReportData memory r
+    int192 r
     // bytes32[] calldata _rs, bytes32[] calldata _ss, bytes32 _rawVs // signatures
   )
     public virtual
   {
-    uint256 initialGas = gasleft(); // This line must come first
+    // uint256 initialGas = gasleft(); // This line must come first
     // Make sure the transmit message-length matches the inputs. Otherwise, the
     // transmitter could append an arbitrarily long (up to gas-block limit)
     // string of 0 bytes, which we would reimburse at a rate of 16 gas/byte, but
@@ -674,25 +696,25 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
     //   }
     // }
 
-      for (uint i = 0; i < r.observations.length - 1; i++) {
-        bool inOrder = r.observations[i] <= r.observations[i+1];
-        require(inOrder, "observations not sorted");
-      }
+      // for (uint i = 0; i < r.observations.length - 1; i++) {
+      //   bool inOrder = r.observations[i] <= r.observations[i+1];
+      //   require(inOrder, "observations not sorted");
+      // }
 
-      int192 median = r.observations[r.observations.length/2];
+      int192 median = r;//.observations[r.observations.length/2];
       require(minAnswer <= median && median <= maxAnswer, "median is out of min-max range");
       s_hotVars.latestAggregatorRoundId++;
       s_transmissions[s_hotVars.latestAggregatorRoundId] =
         Transmission(median, uint64(block.timestamp));
 
-      emit NewTransmission(
-        s_hotVars.latestAggregatorRoundId,
-        median,
-        msg.sender,
-        r.observations,
-        bytes(""),
-        bytes32("")
-      );
+      // emit NewTransmission(
+      //   s_hotVars.latestAggregatorRoundId,
+      //   median,
+      //   msg.sender,
+      //   r.observations,
+      //   bytes(""),
+      //   bytes32("")
+      // );
       // Emit these for backwards compatability with offchain consumers
       // that only support legacy events
       emit NewRound(
@@ -709,7 +731,7 @@ contract OffchainAggregator is Owned, AggregatorV2V3Interface, TypeAndVersionInt
       // validateAnswer(s_hotVars.latestAggregatorRoundId, median);
     
     // s_hotVars = r.hotVars;
-    assert(initialGas < maxUint32);
+    // assert(initialGas < maxUint32);
     // reimburseAndRewardOracles(uint32(initialGas), r.observers);
   }
 

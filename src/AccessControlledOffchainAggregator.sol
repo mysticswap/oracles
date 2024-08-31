@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6;
+pragma solidity ^0.8.19;
 pragma abicoder v2;
 
 import "./OffchainAggregator.sol";
@@ -11,29 +11,15 @@ import "./SimpleReadAccessController.sol";
 contract AccessControlledOffchainAggregator is OffchainAggregator, SimpleReadAccessController {
 
   constructor(
-    uint32 _maximumGasPrice,
-    uint32 _reasonableGasPrice,
-    uint32 _microLinkPerEth,
-    uint32 _linkGweiPerObservation,
-    uint32 _linkGweiPerTransmission,
-    LinkTokenInterface _link,
     int192 _minAnswer,
     int192 _maxAnswer,
-    AccessControllerInterface _billingAccessController,
     AccessControllerInterface _requesterAccessController,
     uint8 _decimals,
     string memory description
   )
-    OffchainAggregator(
-      _maximumGasPrice,
-      _reasonableGasPrice,
-      _microLinkPerEth,
-      _linkGweiPerObservation,
-      _linkGweiPerTransmission,
-      _link,
+    OffchainAggregator(    
       _minAnswer,
       _maxAnswer,
-      _billingAccessController,
       _requesterAccessController,
       _decimals,
       description
@@ -164,7 +150,7 @@ contract AccessControlledOffchainAggregator is OffchainAggregator, SimpleReadAcc
   }
 
   /// @inheritdoc OffchainAggregator
-  function transmit(NewReportData memory r)
+  function transmit(int192 r)
     public
     override
     checkUpdateAccess()
