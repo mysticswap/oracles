@@ -23,7 +23,7 @@ contract TransmitScript is Script {
         
         // transmitter.transmit(2525000000000000000000);
         EACAggregatorProxy oracle = EACAggregatorProxy(oracleAddress);
-        console.log("oracle value:", uint256(oracle.latestAnswer()));
+        console.log("oracle value:", uint256(oracle.latestAnswer())/1e8);
         // console.log("oracle value:", address(oracle.accessController()));
 
         vm.stopBroadcast();

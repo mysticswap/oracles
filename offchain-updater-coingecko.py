@@ -34,7 +34,7 @@ def get_coingecko_price(coin_id, vs_currency):
 
 def transmit_value(value):
     # Convert the float value to uint192
-    uint192_value = int(value * 10**18)  # Assuming 18 decimal places
+    uint192_value = int(value * 10**8)  # Assuming 18 decimal places
     
     # Set up the contract
     contract_address = os.getenv('CONTRACT_ADDRESS')

@@ -8,6 +8,8 @@ solc='0.8.19'
 evm_version = 'shanghai'
 bytecode_hash = 'none'
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+gas_limit = 20000000
+
 
 
 [rpc_endpoints]
@@ -28,6 +30,8 @@ bnb = "${RPC_BNB}"
 gnosis = "${RPC_GNOSIS}"
 base = "${RPC_BASE}"
 plume="${RPC_PLUME}"
+plume2="${RPC_PLUME_TEST2}"
+plume3="${RPC_PLUME_TEST3}"
 arb_sepolia="${RPC_ARBITRUM_SEPOLIA}"
 
 [etherscan]
@@ -46,6 +50,7 @@ bnb={key="${ETHERSCAN_API_KEY_BNB}",chainId=56,url='https://api.bscscan.com/api'
 base={key="${ETHERSCAN_API_KEY_BASE}",chain=8453}
 gnosis={key="${ETHERSCAN_API_KEY_GNOSIS}",chainId=100}
 plume={key="${ETHERSCAN_API_KEY_SEPOLIA}",chainId=161221135,url='https://plume-testnet.explorer.caldera.xyz'}
+plume2={key="${ETHERSCAN_API_KEY_SEPOLIA}",chainId=18230,url='https://www.oklink.com/plume-devnet'}
 arb_sepolia={key="${ETHERSCAN_API_KEY_SEPOLIA}",chainId=421614,url='https://sepolia.arbiscan.com'}
 kinto_test={key="${ETHERSCAN_API_KEY_SEPOLIA}",chainId=42888,url='https://plume-testnet.explorer.caldera.xyz'}
 # See more config options https://github.com/gakonst/foundry/tree/master/config

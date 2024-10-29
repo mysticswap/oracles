@@ -19,6 +19,7 @@ contract DeployOracleScript is Script {
         uint256 decimals = vm.envUint("DECIMALS");
         address operator = vm.envAddress("OPERATOR");
         string memory description = vm.envString("DESCRIPTION");
+        uint256 initValue = vm.envUint("INIT_VALUE");
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -29,6 +30,9 @@ contract DeployOracleScript is Script {
         transmitter.disableAccessCheck();
         
         console.log("New Oracle Address:", address(transmitter));
+
+        transmitter.transmit(int192(int256(initValue)));
+        console.log("Initialized Value");
 
         vm.stopBroadcast();
     }

@@ -15,12 +15,11 @@ contract DeployEACOracleScript is Script {
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address contractAddress = vm.envAddress("CONTRACT_ADDRESS");
-        // address operator = vm.envAddress("OPERATOR");
+        
 
         vm.startBroadcast(deployerPrivateKey);
 
         EACAggregatorProxy oracle = new EACAggregatorProxy(contractAddress, address(0));
-        
         console.log("New Oracle Address:", address(oracle));
 
         vm.stopBroadcast();
