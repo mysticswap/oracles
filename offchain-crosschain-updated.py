@@ -111,43 +111,92 @@ def get_target_history():
     # Adjust decimals as needed for your target oracle
     print(round_data)
 
+from web3 import Web3
+from eth_account import Account
+import os
+
 def transmit_value(value):
+    # Initialize Web3
+    target_w3 = Web3(Web3.HTTPProvider(os.getenv('TARGET_RPC_URL')))
+    
     # Set up the contract
     contract_address = os.getenv('TARGET_ORACLE_ADDRESS')
     contract = target_w3.eth.contract(address=contract_address, abi=TARGET_ORACLE_ABI)
     
-    # Get the account from the private key
-    account = Account.from_key(os.getenv('PRIVATE_KEY'))
-    
+    # Get the account from private key
+    private_key = os.getenv('PRIVATE_KEY')
+    account = Account.from_key(private_key)
+
     # Build the transaction
     decimals = contract.functions.decimals().call()
 
     # Convert the float value to int192
     # Adjust decimals as needed for your target oracle
     int192_value = int(value * 10**decimals)  
-
+    
+    # Build the transaction
+    nonce = target_w3.eth.get_transaction_count(account.address)
+    
     transaction = contract.functions.transmit(int192_value).build_transaction({
-        'from': account.address,
-        'nonce': target_w3.eth.get_transaction_count(account.address),
+        'chainId': target_w3.eth.chain_id,
         'gasPrice': target_w3.eth.gas_price,
+        'nonce': nonce,
+        'from': account.address,
     })
     
     # Sign the transaction
-    signed_txn = account.sign_transaction(transaction)
+    signed_txn = target_w3.eth.account.sign_transaction(transaction, private_key)
     
     # Send the transaction
-    tx_hash = target_w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+    try:
+        # Use the hex() method to convert the raw transaction to hex
+        tx_hash = target_w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+        print(f"Transaction sent! Hash: {tx_hash.hex()}")
+        # Wait for the transaction receipt
+        tx_receipt = target_w3.eth.wait_for_transaction_receipt(tx_hash)
+        print(f"Transaction successful. Hash: {tx_hash.hex()}")
+        return tx_receipt
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        raise
+
+# def transmit_value(value):
+#     # Set up the contract
+#     contract_address = os.getenv('TARGET_ORACLE_ADDRESS')
+#     contract = target_w3.eth.contract(address=contract_address, abi=TARGET_ORACLE_ABI)
     
-    # Wait for the transaction receipt
-    tx_receipt = target_w3.eth.wait_for_transaction_receipt(tx_hash)
+#     # Get the account from the private key
+#     account = Account.from_key(os.getenv('PRIVATE_KEY'))
     
-    print(f"Transaction successful. Hash: {tx_hash.hex()}")
-    return tx_receipt
+#     # Build the transaction
+#     decimals = contract.functions.decimals().call()
+
+#     # Convert the float value to int192
+#     # Adjust decimals as needed for your target oracle
+#     int192_value = int(value * 10**decimals)  
+
+#     transaction = contract.functions.transmit(int192_value).build_transaction({
+#         'from': account.address,
+#         'nonce': target_w3.eth.get_transaction_count(account.address),
+#         'gasPrice': target_w3.eth.gas_price,
+#     })
+    
+#     # Sign the transaction
+#     signed_txn = account.sign_transaction(transaction)
+    
+#     # Send the transaction
+#     tx_hash = target_w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+    
+#     # Wait for the transaction receipt
+#     tx_receipt = target_w3.eth.wait_for_transaction_receipt(tx_hash)
+    
+#     print(f"Transaction successful. Hash: {tx_hash.hex()}")
+#     return tx_receipt
 
 def main():
     
     interval = int(os.getenv('UPDATE_INTERVAL', 3600))  # Default to 1 hour if not set
-    get_target_history()
+    # get_target_history()
     while True:
         try:
             print(f"Fetching price data at {time.strftime('%Y-%m-%d %H:%M:%S')}")
