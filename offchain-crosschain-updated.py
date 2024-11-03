@@ -196,7 +196,7 @@ def transmit_value(value):
 def main():
     
     interval = int(os.getenv('UPDATE_INTERVAL', 3600))  # Default to 1 hour if not set
-    # get_target_history()
+    get_target_history()
     while True:
         try:
             print(f"Fetching price data at {time.strftime('%Y-%m-%d %H:%M:%S')}")
