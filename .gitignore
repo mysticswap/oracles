@@ -14,3 +14,7 @@ docs/
 .env
 
 broadcast/
+
+venv/
+bin/
+lib/
