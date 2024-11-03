@@ -45,6 +45,19 @@ TARGET_ORACLE_ABI = [
         "outputs": [{"internalType": "uint8", "name": "", "type": "uint8"}],
         "stateMutability": "view",
         "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestRoundData",
+        "outputs": [
+            {"internalType": "uint80", "name": "roundId", "type": "uint80"},
+            {"internalType": "int192", "name": "answer", "type": "int192"},
+            {"internalType": "uint256", "name": "startedAt", "type": "uint256"},
+            {"internalType": "uint256", "name": "updatedAt", "type": "uint256"},
+            {"internalType": "uint80", "name": "answeredInRound", "type": "uint80"}
+        ],
+        "stateMutability": "view",
+        "type": "function"
     }
 ]
 
@@ -61,6 +74,42 @@ def get_source_oracle_price():
     normalized_price = float(price) / (10 ** decimals)
     print('norm price',normalized_price)
     return normalized_price
+
+def get_target_history():
+    # Set up the contract
+    contract_address = os.getenv('TARGET_ORACLE_ADDRESS')
+    contract = target_w3.eth.contract(address=contract_address, abi=TARGET_ORACLE_ABI)
+    
+    # Get the account from the private key
+    account = Account.from_key(os.getenv('PRIVATE_KEY'))
+    
+    # Build the transaction
+    round_data = contract.functions.latestRoundData().call()
+
+    # Extract the updatedAt timestamp (assuming it's the 4th output)
+    updatedAt = round_data[3]
+
+    # Get the current timestamp
+    current_timestamp = int(time.time())
+    
+    # Get the update interval from environment variable
+    update_interval = int(os.getenv('UPDATE_INTERVAL', 3600))
+
+    print(updatedAt, current_timestamp, current_timestamp - updatedAt)
+
+    # Check if we need to sleep
+    if (current_timestamp - updatedAt) < update_interval:
+        remaining_time = update_interval - (current_timestamp - updatedAt)
+        print(f"Sleeping for {remaining_time} seconds...")
+        time.sleep(remaining_time)
+    
+    # Continue with the rest of your logic here
+    # For example, you can now fetch the target history or perform other actions
+    print("Running the target history logic...")
+
+    # Convert the float value to int192
+    # Adjust decimals as needed for your target oracle
+    print(round_data)
 
 def transmit_value(value):
     # Set up the contract
@@ -98,7 +147,7 @@ def transmit_value(value):
 def main():
     
     interval = int(os.getenv('UPDATE_INTERVAL', 3600))  # Default to 1 hour if not set
-    
+    get_target_history()
     while True:
         try:
             print(f"Fetching price data at {time.strftime('%Y-%m-%d %H:%M:%S')}")
